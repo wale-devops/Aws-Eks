@@ -15,7 +15,7 @@ module "vpc" {
 module "ec2" {
   source = "./modules/ec2"
 
-  subnet_id = module.vpc.public_subnet[0]  # Use first public subnet
+  subnet_id = module.vpc.public_subnet  # Use first public subnet
   vpc_id    = module.vpc.vpc_id
   key_name  = var.key_name
 }
