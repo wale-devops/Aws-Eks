@@ -5,7 +5,7 @@ pipeline {
         // Docker Hub credentials
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
         IMAGE_NAME = "olawaledevops/my-app"  // Your Docker Hub username
-        KUBECTL_HOST = "44.192.5.50"
+        KUBECTL_HOST = "3.218.207.3"
         SSH_USER = "ec2-user"  // Your EC2 username
         SSH_CREDENTIALS_ID = "ec2-ssh-key"  // Your SSH credential ID
     }
