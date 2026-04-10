@@ -1,25 +1,25 @@
 pipeline {
-    // Run on any available agent (SSH agent in Jenkins UI points to your Kubectl EC2)
     agent any
 
     environment {
-        // Docker Hub credentials stored in Jenkins UI
+        // Docker Hub credentials
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
-        IMAGE_NAME = "your-dockerhub-username/my-app"   // Change to your Docker Hub username
-        KUBECONFIG = "/home/ubuntu/.kube/config"        // Path to kubeconfig on the agent
+        IMAGE_NAME = "olawaledevops/my-app"  // Your Docker Hub username
+        KUBECTL_HOST = "44.192.5.50"
+        SSH_USER = "ec2-user"  // Your EC2 username
+        SSH_CREDENTIALS_ID = "ec2-ssh-key"  // Your SSH credential ID
     }
 
     options {
-        buildDiscarder(logRotator(numToKeepStr: '10')) // Keep last 10 builds
-        timeout(time: 30, unit: 'MINUTES')            // Timeout after 30 minutes
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 echo "Checking out code from GitHub"
-                git branch: 'main', url: 'https://github.com/yourusername/webapp-repo.git'
+                checkout scm
             }
         }
 
@@ -32,7 +32,7 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                echo "Logging in to Docker Hub and pushing image..."
+                echo "Pushing to Docker Hub..."
                 sh '''
                     echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
                     docker push $IMAGE_NAME:${BUILD_NUMBER}
@@ -42,25 +42,30 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                echo "Updating Kubernetes deployment..."
-                sh """
-                    kubectl set image deployment/my-app-deployment my-app-container=$IMAGE_NAME:${BUILD_NUMBER} --kubeconfig=$KUBECONFIG
-                    kubectl rollout status deployment/my-app-deployment --kubeconfig=$KUBECONFIG
-                """
+                echo "Deploying to EKS via SSH to kubectl EC2 (44.192.5.50)..."
+                sshagent(credentials: [SSH_CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${KUBECTL_HOST} \
+                        "kubectl set image deployment/my-app-deployment \
+                        my-app-container=${IMAGE_NAME}:${BUILD_NUMBER}"
+                    """
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${KUBECTL_HOST} \
+                        "kubectl rollout status deployment/my-app-deployment"
+                    """
+                }
             }
         }
-
     }
 
     post {
         success {
-            echo "Build, push, and deployment completed successfully!"
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo "Pipeline failed. Check the logs for details."
+            echo "Pipeline failed. Check the logs."
         }
         always {
-            echo "Logging out of Docker Hub..."
             sh 'docker logout'
         }
     }
