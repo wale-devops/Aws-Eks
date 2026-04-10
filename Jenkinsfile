@@ -50,7 +50,7 @@ pipeline {
             steps {
                 echo 'Building Docker image from webapp directory...'
                 script {
-                    sh "docker build -t ${IMAGE_TAG} ./webapp"
+                    sh "docker build -t ${IMAGE_TAG} ./Webapp"
                 }
             }
         }
