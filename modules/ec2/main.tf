@@ -25,7 +25,7 @@ resource "aws_security_group" "ec2_sg" {
 
 resource "aws_instance" "jenkins" {
   ami                    = "ami-0ea87431b78a82070"
-  instance_type          = "t2.small"
+  instance_type          = "t2.medium"
   subnet_id              = var.subnet_id
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
@@ -39,7 +39,7 @@ resource "aws_instance" "jenkins" {
 
 resource "aws_instance" "kubectl" {
   ami                    = "ami-0ea87431b78a82070"
-  instance_type          = "t2.small"
+  instance_type          = "t2.medium"
   subnet_id              = var.subnet_id
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
