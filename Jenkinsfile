@@ -39,9 +39,9 @@ pipeline {
                     echo "Listing root directory:"
                     ls -la
                     echo "Webapp directory contents:"
-                    ls -la webapp/
+                    ls -la Webapp/
                     echo "Src directory contents:"
-                    ls -la webapp/src/
+                    ls -la Webapp/Src/
                 '''
             }
         }
