@@ -12,7 +12,7 @@ pipeline {
         IMAGE_NAME = "olawaledevops/my-app"
         IMAGE_TAG = "${IMAGE_NAME}:${BUILD_NUMBER}"
 
-        // EC2 configuration (your instance from earlier)
+        // EC2 configuration
         KUBECTL_HOST = "44.204.202.227"
         SSH_USER = "ec2-user"
         SSH_CREDENTIALS_ID = "ec2-ssh-key"
@@ -78,6 +78,8 @@ pipeline {
                             scp -o StrictHostKeyChecking=no deployment.yaml ${SSH_USER}@${KUBECTL_HOST}:/tmp/deployment.yaml
                             
                             ssh -o StrictHostKeyChecking=no ${SSH_USER}@${KUBECTL_HOST} << 'EOF'
+                                set -e
+                                
                                 echo "Updating kubeconfig for EKS cluster..."
                                 aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
                                 
