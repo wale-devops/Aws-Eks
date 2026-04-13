@@ -13,7 +13,7 @@ pipeline {
         IMAGE_TAG = "${IMAGE_NAME}:${BUILD_NUMBER}"
 
         // EC2 configuration (your instance from earlier)
-        KUBECTL_HOST = "3.218.207.3"
+        KUBECTL_HOST = "44.204.202.227"
         SSH_USER = "ec2-user"
         SSH_CREDENTIALS_ID = "ec2-ssh-key"
 

@@ -1,16 +1,42 @@
-# modules/eks/outputs.tf
+# modules/eks/output.tf
+
 output "cluster_name" {
-  value = aws_eks_cluster.eks.name
+  description = "EKS cluster name"
+  value       = aws_eks_cluster.eks.name
 }
 
 output "cluster_endpoint" {
-  value = aws_eks_cluster.eks.endpoint
+  description = "EKS cluster API endpoint"
+  value       = aws_eks_cluster.eks.endpoint
 }
 
 output "cluster_certificate" {
-  value = aws_eks_cluster.eks.certificate_authority[0].data
+  description = "Base64 encoded certificate authority data"
+  value       = aws_eks_cluster.eks.certificate_authority[0].data
+  sensitive   = true
 }
 
 output "node_group_name" {
-  value = aws_eks_node_group.nodes.node_group_name
+  description = "EKS node group name"
+  value       = aws_eks_node_group.nodes.node_group_name
+}
+
+output "cluster_role_arn" {
+  description = "EKS cluster IAM role ARN"
+  value       = aws_iam_role.eks_cluster_role.arn
+}
+
+output "node_role_arn" {
+  description = "Worker node IAM role ARN"
+  value       = aws_iam_role.node_role.arn
+}
+
+output "kubectl_instance_profile_name" {
+  description = "Instance profile name for kubectl EC2 instance"
+  value       = aws_iam_instance_profile.kubectl_profile.name
+}
+
+output "kubectl_config_command" {
+  description = "Command to configure kubectl"
+  value       = "aws eks update-kubeconfig --name ${aws_eks_cluster.eks.name} --region ${var.aws_region}"
 }

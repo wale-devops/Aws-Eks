@@ -15,7 +15,7 @@ module "vpc" {
 module "ec2" {
   source = "./modules/ec2"
 
-  subnet_id = module.vpc.public_subnet  # Use first public subnet
+  subnet_id = module.vpc.public_subnet # Use first public subnet
   vpc_id    = module.vpc.vpc_id
   key_name  = var.key_name
 }
@@ -28,7 +28,7 @@ module "eks" {
 
   # Pass all private subnets (should be at least 2 in different AZs)
   subnet_ids = module.vpc.private_subnets
-  
+
   # Or explicitly pass them
   # subnet_ids = [
   #   module.vpc.private_subnet_1,
