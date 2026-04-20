@@ -147,7 +147,7 @@ resource "aws_iam_role_policy_attachment" "cni_policy" {
 
 resource "aws_iam_role_policy_attachment" "ecr_policy" {
   role       = aws_iam_role.node_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
 }
 
 # Kubectl EC2 Instance Role
