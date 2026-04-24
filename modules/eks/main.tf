@@ -1,5 +1,28 @@
 # modules/eks/main.tf
 
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+  }
+}
+
+provider "kubernetes" {
+  host                   = aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.eks.certificate_authority[0].data)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.eks.name]
+    command     = "aws"
+  }
+}
+
 # ============================================
 # IAM ROLES
 # ============================================
@@ -75,11 +98,39 @@ resource "aws_eks_cluster" "eks" {
     endpoint_public_access  = var.endpoint_public_access
   }
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+  }
+
   tags = var.common_tags
 
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
+}
+
+# ============================================
+# EKS ACCESS ENTRY FOR KUBECTL EC2
+# ============================================
+
+resource "aws_eks_access_entry" "kubectl" {
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = "arn:aws:iam::315301634286:role/kubectl-ec2-role"
+  type          = "STANDARD"
+
+  depends_on = [aws_eks_cluster.eks]
+}
+
+resource "aws_eks_access_policy_association" "kubectl_admin" {
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = "arn:aws:iam::315301634286:role/kubectl-ec2-role"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.kubectl]
 }
 
 # ============================================
