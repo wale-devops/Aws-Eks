@@ -7,17 +7,13 @@ pipeline {
     }
 
     environment {
-        // Docker Hub credentials
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
         IMAGE_NAME = "olawaledevops/my-app"
         IMAGE_TAG = "${IMAGE_NAME}:${BUILD_NUMBER}"
 
-        // EC2 configuration
-        KUBECTL_HOST = "3.228.2.110"
         SSH_USER = "ec2-user"
         SSH_CREDENTIALS_ID = "ec2-ssh-key"
 
-        // AWS EKS configuration
         AWS_DEFAULT_REGION = "us-east-1"
         CLUSTER_NAME = "my-eks-cluster"
     }
@@ -27,24 +23,6 @@ pipeline {
             steps {
                 echo 'Checking out code from GitHub'
                 checkout scm
-            }
-        }
-
-        stage('Debug - Verify Structure') {
-            steps {
-                echo 'Verifying repository structure...'
-                sh '''
-                    echo "Current directory:"
-                    pwd
-                    echo "Listing root directory:"
-                    ls -la
-                    echo "Webapp directory contents:"
-                    ls -la Webapp/
-                    echo "Src directory contents:"
-                    ls -la Webapp/Src/
-                    echo "Checking for deployment.yaml:"
-                    ls -la deployment.yaml || echo "deployment.yaml not found in root"
-                '''
             }
         }
 
@@ -63,6 +41,20 @@ pipeline {
                 script {
                     sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
                     sh "docker push ${IMAGE_TAG}"
+                    sh "docker tag ${IMAGE_TAG} ${IMAGE_NAME}:latest"
+                    sh "docker push ${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Get Kubectl Host') {
+            steps {
+                script {
+                    KUBECTL_HOST = sh(
+                        script: "aws ssm get-parameter --name /eks/kubectl-ip --region ${AWS_DEFAULT_REGION} --query 'Parameter.Value' --output text",
+                        returnStdout: true
+                    ).trim()
+                    echo "Kubectl host: ${KUBECTL_HOST}"
                 }
             }
         }
@@ -71,43 +63,42 @@ pipeline {
             steps {
                 echo 'Deploying to EKS cluster from EC2 instance...'
                 script {
+                    // Replace image tag in deployment file before copying
+                    sh "sed -i 's|${IMAGE_NAME}:latest|${IMAGE_TAG}|g' deployment.yaml"
+
                     sshagent([SSH_CREDENTIALS_ID]) {
                         sh """
-                            # Copy deployment files to EC2 instance
                             echo "Copying deployment.yaml to EC2 instance..."
                             scp -o StrictHostKeyChecking=no deployment.yaml ${SSH_USER}@${KUBECTL_HOST}:/tmp/deployment.yaml
-                            
-                            ssh -o StrictHostKeyChecking=no ${SSH_USER}@${KUBECTL_HOST} << 'EOF'
+
+                            ssh -o StrictHostKeyChecking=no ${SSH_USER}@${KUBECTL_HOST} << EOF
                                 set -e
-                                
+
                                 echo "Updating kubeconfig for EKS cluster..."
                                 aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
-                                
+
                                 echo "Applying Kubernetes deployment..."
                                 kubectl apply -f /tmp/deployment.yaml
-                                
+
                                 echo "Updating deployment image to ${IMAGE_TAG}..."
-                                kubectl set image deployment/webapp webapp=${IMAGE_TAG} --record
-                                
+                                kubectl set image deployment/webapp webapp=${IMAGE_TAG}
+
                                 echo "Waiting for rollout to complete..."
                                 kubectl rollout status deployment/webapp --timeout=5m
-                                
+
                                 echo "Verifying deployment..."
                                 echo "Nodes:"
                                 kubectl get nodes
-                                echo ""
                                 echo "Pods:"
                                 kubectl get pods
-                                echo ""
                                 echo "Services:"
                                 kubectl get services
-                                echo ""
                                 echo "Deployment status:"
                                 kubectl get deployment webapp
-                                
+
                                 echo "Cleaning up temporary files..."
                                 rm -f /tmp/deployment.yaml
-                                
+
                                 echo "Deployment completed successfully!"
 EOF
                         """
@@ -121,6 +112,8 @@ EOF
         always {
             script {
                 sh "docker logout"
+                sh "docker rmi ${IMAGE_TAG} || true"
+                sh "docker rmi ${IMAGE_NAME}:latest || true"
                 cleanWs()
             }
         }

@@ -30,3 +30,4 @@ sudo systemctl enable jenkins
  
 # Start Jenkins as a service
 sudo systemctl start jenkins
+sudo usermod -aG docker jenkins
