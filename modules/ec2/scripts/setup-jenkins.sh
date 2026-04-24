@@ -25,9 +25,10 @@ sudo yum install java-21-amazon-corretto -y
 # Install Jenkins
 sudo yum install jenkins -y
 
+sudo usermod -aG docker jenkins
 # Enable the Jenkins service to start at boot
 sudo systemctl enable jenkins
  
 # Start Jenkins as a service
 sudo systemctl start jenkins
-sudo usermod -aG docker jenkins
+
