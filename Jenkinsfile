@@ -28,7 +28,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image from webapp directory...'
+                echo 'Building Docker image...'
                 script {
                     sh "docker build -t ${IMAGE_TAG} ./Webapp"
                 }
@@ -61,42 +61,37 @@ pipeline {
 
         stage('Deploy to EKS via SSH') {
             steps {
-                echo 'Deploying to EKS cluster from EC2 instance...'
+                echo 'Deploying to EKS cluster...'
                 script {
-                    // Replace image tag in deployment file before copying
                     sh "sed -i 's|${IMAGE_NAME}:latest|${IMAGE_TAG}|g' deployment.yaml"
 
                     sshagent([SSH_CREDENTIALS_ID]) {
                         sh """
-                            echo "Copying deployment.yaml to EC2 instance..."
+                            echo "Copying deployment.yaml to kubectl EC2..."
                             scp -o StrictHostKeyChecking=no deployment.yaml ${SSH_USER}@${KUBECTL_HOST}:/tmp/deployment.yaml
 
                             ssh -o StrictHostKeyChecking=no ${SSH_USER}@${KUBECTL_HOST} << EOF
                                 set -e
 
-                                echo "Updating kubeconfig for EKS cluster..."
+                                echo "Updating kubeconfig..."
                                 aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
 
-                                echo "Applying Kubernetes deployment..."
+                                echo "Applying deployment..."
                                 kubectl apply -f /tmp/deployment.yaml
 
-                                echo "Updating deployment image to ${IMAGE_TAG}..."
+                                echo "Updating image to ${IMAGE_TAG}..."
                                 kubectl set image deployment/webapp webapp=${IMAGE_TAG}
 
-                                echo "Waiting for rollout to complete..."
+                                echo "Waiting for rollout..."
                                 kubectl rollout status deployment/webapp --timeout=5m
 
                                 echo "Verifying deployment..."
-                                echo "Nodes:"
                                 kubectl get nodes
-                                echo "Pods:"
                                 kubectl get pods
-                                echo "Services:"
                                 kubectl get services
-                                echo "Deployment status:"
                                 kubectl get deployment webapp
 
-                                echo "Cleaning up temporary files..."
+                                echo "Cleaning up..."
                                 rm -f /tmp/deployment.yaml
 
                                 echo "Deployment completed successfully!"

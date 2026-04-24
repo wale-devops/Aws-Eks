@@ -31,6 +31,52 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
+# ─── IAM ROLE + PROFILE FOR JENKINS ───────────────────────────────────────────
+
+resource "aws_iam_role" "jenkins" {
+  name = "jenkins-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "jenkins_policy" {
+  name = "jenkins-policy"
+  role = aws_iam_role.jenkins.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:*:*:parameter/eks/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ec2:DescribeInstances"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "jenkins" {
+  name = "jenkins-ec2-profile"
+  role = aws_iam_role.jenkins.name
+}
+
 # ─── IAM ROLE + PROFILE FOR KUBECTL ───────────────────────────────────────────
 
 resource "aws_iam_role" "kubectl" {
@@ -53,7 +99,6 @@ resource "aws_iam_role_policy_attachment" "kubectl_eks_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# Allow kubectl EC2 to describe EKS cluster and read SSM parameters
 resource "aws_iam_role_policy" "kubectl_extra" {
   name = "kubectl-extra-policy"
   role = aws_iam_role.kubectl.name
@@ -94,6 +139,7 @@ resource "aws_instance" "jenkins" {
   subnet_id              = var.subnet_id
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.jenkins.name
 
   user_data = file("${path.module}/scripts/setup-jenkins.sh")
 
